@@ -1,12 +1,296 @@
-# BOM Risk Assessment Skill
+<h1 align="center">
+  ⚡ BOM Risk Assessment
+</h1>
 
-> AI-powered platform-migration BOM risk review for Intel hardware projects.
+<p align="center">
+  <b>AI-Powered Platform Migration BOM Review — Built for Intel Hardware Engineers</b>
+</p>
 
-**[→ Full Documentation](.github/skills/bom-risk/README.md)**
+<p align="center">
+  <img src="https://img.shields.io/badge/GitHub_Copilot-Skill-007ACC?style=for-the-badge&logo=github" />
+  <img src="https://img.shields.io/badge/Intel-Platform_Migration-0071C5?style=for-the-badge&logo=intel" />
+  <img src="https://img.shields.io/badge/Python-stdlib_only-3776AB?style=for-the-badge&logo=python" />
+  <img src="https://img.shields.io/badge/Zero-Hallucination-brightgreen?style=for-the-badge" />
+</p>
 
-## Highlights
+<p align="center">
+  <code>6+ hours of manual BOM review → under 10 minutes, fully automated.</code>
+</p>
 
-- **6+ hours → 10 minutes** per BOM review
-- Dual-source verification (RVP BOM ∩ NVL PCL) — zero hallucination
-- Slate14-compliant output format
-- No external dependencies (stdlib + Office COM only)
+---
+
+<details>
+<summary><b>🇹🇼 繁體中文版本 (點擊展開)</b></summary>
+
+<br/>
+
+## 概述
+
+此工具是 **GitHub Copilot Skill**，用於自動化 Intel 平台遷移 BOM 風險評估。  
+工程師只需提供 RVP BOM + PCL PDF，AI 即自動完成 IC 識別、交叉驗證與風險報告生成。
+
+### 核心價值
+
+| 指標 | 手動作業 | AI 自動化 |
+|------|:--------:|:---------:|
+| 從 BOM 過濾 IC | 2–3 小時 | 即時 |
+| 比對 PCL 文件 | 1–2 小時 | 即時 |
+| 填寫參考 BOM 欄位 | 1 小時 | 自動 |
+| 風險評估 + 上色 | 1–2 小時 | 自動 |
+| **合計** | **6–9 小時** | **~10 分鐘** |
+
+### 運作流程
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant 工程師
+    participant AI as Copilot Skill
+    participant 客戶
+
+    工程師->>AI: 提供 PCL + BOM
+    AI->>AI: 擷取、過濾、驗證
+    AI-->>工程師: Excel (B欄已填)
+    工程師->>客戶: 傳送填寫 C 欄
+    客戶-->>工程師: 回傳 C 欄
+    工程師->>AI: 完成風險評估
+    AI-->>工程師: 最終 Excel (D欄彩色風險)
+```
+
+### 驗證政策
+
+```
+✅ PCL 有 + BOM 有  →  "Part XYZ (NVL PCL §x.y; RVP RefDes EUxxx)"
+⚠️ BOM 有但 PCL 無 →  "Part XYZ (NOT in NVL PCL; RVP RefDes EUxxx)"
+⬜ 兩邊都沒有      →  "NA"
+```
+
+> **零虛構保證：** 未在實際檔案中找到的零件編號，絕不寫入報告。
+
+### 快速使用
+
+1. 在 VS Code 開啟 Copilot Chat
+2. 輸入：`Perform BOM risk assessment for NVL-S`
+3. 提供 PCL PDF + RVP BOM Excel
+4. AI 自動完成 B 欄 → 送客戶填 C 欄 → AI 自動完成 D 欄
+
+### 安裝
+
+```powershell
+git clone https://github.com/billhsie/BOM_Risk_Assessment.git
+Copy-Item -Recurse .github\skills\bom-risk <your-project>\.github\skills\
+```
+
+**需求：** Windows · Office (Excel + Word) · Python 3.x · VS Code + GitHub Copilot
+
+</details>
+
+---
+
+## The Problem
+
+Every Intel platform migration requires a BOM risk review:
+- **1,700+ rows** of raw BOM data to sift through
+- Cross-reference against PCL documents (PDF, 150+ components)
+- Classify risk for each IC subsystem
+- Produce color-coded Excel for management review
+
+**This takes 6–9 hours per project.** Multiply by dozens of ODM engagements per year.
+
+---
+
+## The Solution
+
+```mermaid
+flowchart LR
+    A[📄 RVP BOM xlsx<br/>1,700+ rows] --> F{{"🤖 AI Skill<br/>Filter · Validate · Assess"}}
+    B[📑 NVL PCL PDF<br/>150+ components] --> F
+    F --> O[📊 Risk Report Excel<br/>Slate14 color-coded]
+```
+
+One command in VS Code Copilot Chat. No manual filtering. No guesswork.
+
+---
+
+## Key Features
+
+| Feature | Description |
+|---------|-------------|
+| 🔍 **Smart IC Extraction** | Automatically filters resistors/capacitors, identifies ICs & controllers from 1,700+ BOM rows |
+| 📋 **PCL Cross-Validation** | Extracts component data from PCL PDF and matches against BOM |
+| 🎨 **Slate14 Output** | Color-coded Excel matching Intel's standard review format |
+| 🛡️ **Zero Hallucination** | Dual-source verification — only writes what exists in source files |
+| ⚡ **No Dependencies** | Python stdlib + Office COM only. No pip install, no network needed |
+| 🔄 **Two-Phase Workflow** | Phase 1: Fill Col B (auto) → Phase 2: Fill Col D after customer Col C |
+
+---
+
+## Before / After
+
+| Step | Manual | With This Skill |
+|------|:------:|:---------------:|
+| Filter ICs from raw BOM | 2–3 hrs | **Instant** |
+| Cross-reference PCL | 1–2 hrs | **Instant** |
+| Fill reference BOM column | 1 hr | **Auto** |
+| Risk assessment + color coding | 1–2 hrs | **Auto** |
+| **Total per project** | **6–9 hrs** | **~10 min** |
+
+---
+
+## How It Works
+
+```mermaid
+flowchart TD
+    subgraph "📥 Inputs"
+        PCL[NVL PCL PDF]
+        BOM[RVP BOM Excel]
+    end
+
+    subgraph "🤖 AI Processing"
+        P1[PDF → Text<br/>Word 16.0 COM]
+        P2[BOM → IC Filter<br/>Python zipfile+XML]
+        V[Cross-Validation<br/>BOM ∩ PCL]
+    end
+
+    subgraph "📤 Output"
+        XL["Risk Assessment Excel<br/>38 subsystems · Slate14 colors"]
+    end
+
+    PCL --> P1 --> V
+    BOM --> P2 --> V
+    V --> XL
+
+    style V fill:#1F3864,color:#fff
+    style XL fill:#92D050,color:#000
+```
+
+---
+
+## Workflow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Eng as 👷 Engineer
+    participant AI as 🤖 Copilot Skill
+    participant Cust as 🏢 Customer/ODM
+
+    Eng->>AI: Invoke with PCL + BOM files
+    AI->>AI: Extract text, filter ICs, validate
+    AI-->>Eng: Excel with Col B filled
+    Eng->>Cust: Send for Col C input
+    Cust-->>Eng: Returns with Col C populated
+    Eng->>AI: Run risk assessment (Phase 2)
+    AI-->>Eng: Final Excel with Col D color-coded
+```
+
+---
+
+## Output Format
+
+Matches **Intel Slate14 BOM Review Standard**:
+
+| Column | Content | Owner |
+|:------:|---------|:-----:|
+| **A** | Subsystem (38 fixed entries) | Template |
+| **B** | RVP Reference BOM | 🤖 AI |
+| **C** | Customer BOM | 🏢 Customer |
+| **D** | Risk Level & Recommendation | 🤖 AI |
+
+### Risk Classification (Column D)
+
+| Color | Level | Criteria |
+|:-----:|:-----:|----------|
+| 🟢 `#92D050` | **Low** | In PCL, co-using with RVP, or proven silicon |
+| 🟡 `#FFFF00` | **Medium** | Not in current PCL but has different-gen validation |
+| 🔴 `#C00000` | **High** | No validation data, security-critical, or different vendor |
+
+---
+
+## Verification Policy
+
+Every data point requires **dual-source traceability**:
+
+```
+✅ In PCL + In BOM  →  "PS8825 (NVL PCL §4.2 iPoR; RVP BOM U3201)"
+⚠️ In BOM only      →  "RTQ3700HHN (NOT in NVL PCL; RVP BOM U1234)"  
+⬜ Not found         →  "NA"
+```
+
+> **Guarantee:** No part number is written unless it appears in the actual source files.  
+> This eliminates the #1 risk in AI-assisted engineering: fabricated data.
+
+---
+
+## Quick Start
+
+```powershell
+# 1. Clone this repository
+git clone https://github.com/billhsie/BOM_Risk_Assessment.git
+
+# 2. Copy skill into your VS Code project
+Copy-Item -Recurse .github\skills\bom-risk <your-project>\.github\skills\
+
+# 3. Open VS Code Copilot Chat and invoke:
+#    "Perform BOM risk assessment for NVL-S"
+```
+
+### Requirements
+
+| Requirement | Version |
+|-------------|---------|
+| Windows | 10/11 |
+| Microsoft Office | Word + Excel (COM automation) |
+| Python | 3.x (stdlib only, no pip) |
+| VS Code | Latest + GitHub Copilot extension |
+
+---
+
+## Repository Structure
+
+```
+BOM_Risk_Assessment/
+├── README.md                          ← You are here
+├── .github/
+│   └── skills/
+│       └── bom-risk/
+│           ├── SKILL.md               ← Copilot skill definition
+│           ├── README.md              ← Technical deep-dive
+│           ├── scripts/
+│           │   ├── bom_reader.py      ← BOM parser (no dependencies)
+│           │   └── bom_writer.py      ← Excel generator (PowerShell COM)
+│           └── references/
+│               ├── risk_criteria.md   ← Risk classification rules
+│               └── subsystem_template.md ← 38-entry subsystem list
+└── .gitignore
+```
+
+**[→ Technical Details & Risk Criteria](.github/skills/bom-risk/README.md)**
+
+---
+
+## Roadmap
+
+- [x] NVL-S Desktop (S021 UDIMM 1DPC)
+- [ ] NVL-H / NVL-UL / NVL-AX platform variants
+- [ ] PTL cross-generation co-using analysis
+- [ ] GitHub Actions CI/CD integration
+- [ ] PCL revision diff tracking
+- [ ] Multi-platform comparison mode
+
+---
+
+## Contributing
+
+This skill is designed for Intel VB hardware engineers. To adapt for your platform:
+
+1. Update `references/subsystem_template.md` with your subsystem list
+2. Update `references/risk_criteria.md` with your risk rules
+3. Provide your platform's PCL PDF + RVP BOM xlsx
+
+---
+
+<p align="center">
+  <b>Built with GitHub Copilot Agent Mode</b><br/>
+  <sub>Intel Hardware Engineering · Platform Validation</sub>
+</p>

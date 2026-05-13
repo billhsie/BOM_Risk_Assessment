@@ -1,179 +1,138 @@
-# BOM Risk Assessment Skill
+# BOM Risk Assessment — Technical Reference
 
-<p align="center">
-  <img src="https://img.shields.io/badge/GitHub_Copilot-Skill-007ACC?style=for-the-badge&logo=github" />
-  <img src="https://img.shields.io/badge/Intel-Platform_Migration-0071C5?style=for-the-badge&logo=intel" />
-  <img src="https://img.shields.io/badge/Status-Production-brightgreen?style=for-the-badge" />
-</p>
-
-> AI-powered BOM risk assessment tool for Intel platform migrations.  
-> Reduces review time from **6+ hours to under 10 minutes** per project.
+> Deep-dive documentation for the BOM Risk Assessment Copilot Skill.  
+> For overview and quick start, see the [main README](../../../README.md).
 
 ---
 
-<details>
-<summary>🇨🇳 中文版 (Click to expand)</summary>
+## SKILL.md Specification
 
-## 概述
-
-此工具是 GitHub Copilot Skill，用於自動化 Intel 平台遷移 BOM 風險評估。
-
-**核心功能：**
-- 從 RVP BOM (1,700+ 行) 中自動過濾出 IC 元件
-- 對照 PCL PDF 交叉驗證每個零件
-- 輸出 Slate14 格式的彩色風險報告 Excel
-
-**效益：** 每案 6-9 小時 → 10 分鐘
-
-**使用方式：**
-1. VS Code 中開啟 Copilot Chat
-2. 輸入：`Perform NVL-S BOM risk assessment`
-3. 提供 PCL PDF + RVP BOM Excel
-4. AI 自動產出 B 欄（RVP 參考）
-5. 客戶填 C 欄後，AI 自動完成 D 欄風險評估
-
-**驗證原則：** 雙重來源驗證（BOM ∩ PCL），沒有就填 NA，絕不虛構。
-
-</details>
+The skill is invoked automatically when Copilot detects BOM risk assessment intent.  
+Trigger phrases: `BOM risk`, `platform migration review`, `risk assessment`.
 
 ---
 
-## What It Does
+## Processing Pipeline
 
-```mermaid
-flowchart LR
-    A[RVP BOM xlsx<br/>1,700+ rows] --> F[AI Filter & Validate]
-    B[NVL PCL PDF<br/>159 components] --> F
-    F --> O[Risk Assessment Excel<br/>Color-coded output]
-```
-
-This skill automates the most labor-intensive step in platform-migration BOM reviews:
-
-| Step | Before (Manual) | After (AI Skill) |
-|------|:-:|:-:|
-| Filter ICs from raw BOM | 2–3 hrs | Instant |
-| Cross-reference against PCL | 1–2 hrs | Instant |
-| Fill reference BOM column | 1 hr | Auto |
-| Risk assessment + color coding | 1–2 hrs | Auto |
-| **Total** | **6–9 hrs** | **~10 min** |
-
----
-
-## Architecture
+### Phase 1: Column B (RVP Reference BOM)
 
 ```mermaid
 flowchart TD
-    subgraph Inputs
-        PCL[NVL PCL PDF]
-        BOM[RVP BOM Excel]
-    end
-    subgraph AI Processing
-        P1[PDF → Text extraction<br/>Word COM]
-        P2[BOM → IC filter<br/>Python stdlib]
-        V[Cross-Validation Engine]
-    end
-    subgraph Output
-        XL[Risk Assessment Excel<br/>Slate14 format]
-    end
+    A[RVP BOM xlsx] -->|zipfile + XML parse| B[Extract all rows]
+    B --> C{Filter logic}
+    C -->|Remove| D[Resistors, Capacitors,<br/>Connectors, Mechanical]
+    C -->|Keep| E[ICs, Controllers,<br/>PHYs, PMICs]
+    E --> F[Match against 38<br/>subsystem keywords]
+    
+    G[PCL PDF] -->|Word COM → txt| H[Extract component list]
+    H --> I[Parse part numbers<br/>+ iPoR references]
+    
+    F --> J{Cross-validate}
+    I --> J
+    J -->|Found in both| K["Part (PCL §x.y; BOM RefDes)"]
+    J -->|BOM only| L["Part (NOT in PCL; BOM RefDes)"]
+    J -->|Neither| M["NA"]
+```
 
-    PCL --> P1 --> V
-    BOM --> P2 --> V
-    V --> XL
+### Phase 2: Column D (Risk Assessment)
+
+Triggered after customer fills Column C.
+
+| Condition | Risk | Color |
+|-----------|:----:|:-----:|
+| Customer part = RVP part (in PCL) | Low | `#92D050` |
+| Customer part ≠ RVP but same vendor/family | Medium | `#FFFF00` |
+| Different vendor or no validation data | High | `#C00000` |
+| Security-critical subsystem (TPM, EC, BIOS flash) without PCL match | High | `#C00000` |
+| Customer part in PCL but different subsystem | Medium | `#FFFF00` |
+
+Full decision tree: [references/risk_criteria.md](references/risk_criteria.md)
+
+---
+
+## IC Filter Logic
+
+**Keep** (keywords that indicate ICs):
+```
+Controller, IC, PHY, PMIC, Regulator, MOSFET, Driver, 
+Codec, Amplifier, Retimer, Redriver, Mux, Switch, 
+Flash, EEPROM, TPM, EC, Sensor (IMU/Accel only)
+```
+
+**Remove** (passive/mechanical):
+```
+Resistor, Capacitor, Inductor, Ferrite, Diode, Crystal, 
+Oscillator, Connector, Header, Socket, Screw, Standoff,
+Thermal pad, Heatsink, Label, PCB
 ```
 
 ---
 
-## Workflow
+## Subsystem Mapping
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Eng as Engineer
-    participant AI as Copilot Skill
-    participant Cust as Customer
+38 fixed entries. Each maps to BOM keywords:
 
-    Eng->>AI: Invoke with PCL + BOM
-    AI->>AI: Extract, filter, validate
-    AI-->>Eng: Excel (Col B filled)
-    Eng->>Cust: Send for Col C input
-    Cust-->>Eng: Returns with Col C
-    Eng->>AI: Complete risk assessment
-    AI-->>Eng: Final Excel (Col D color-coded)
-```
+| # | Subsystem | BOM Keywords |
+|---|-----------|-------------|
+| 1 | Processor / SoC | CPU, Processor, SoC |
+| 2 | PCH / Chipset | PCH, Chipset |
+| 3 | Memory (DRAM) | DDR, DIMM, DRAM |
+| 4 | BIOS SPI Flash | SPI, Flash, W25 |
+| 5 | EC | NPCX, EC, Embedded Controller |
+| ... | ... | ... |
+
+Full list: [references/subsystem_template.md](references/subsystem_template.md)
 
 ---
 
-## Output Format
+## Excel Output Spec (Slate14)
 
-Matches Intel Slate14 BOM review standard:
+### Color Palette
 
-| Column | Content | Filled By |
-|--------|---------|-----------|
-| **A** | Subsystem (fixed 38 entries) | Template |
-| **B** | RVP Reference BOM | **AI** |
-| **C** | Customer BOM | Customer |
-| **D** | Risk Assessment & Recommendation | **AI** |
+| Element | Hex | RGB | Usage |
+|---------|-----|-----|-------|
+| Header A | `#1F3864` | 31,56,100 | Column A header |
+| Header B/C | `#2E4A7A` | 46,74,122 | Column B/C headers |
+| Header D | `#8B0000` | 139,0,0 | Column D header |
+| Even row | `#DCE6F1` | 220,230,241 | Alternating fill |
+| Low risk | `#92D050` | 146,208,80 | Column D cell |
+| Medium risk | `#FFFF00` | 255,255,0 | Column D cell |
+| High risk | `#C00000` | 192,0,0 | Column D cell |
 
-**Risk colors in Column D:**
+### Cell Formatting
 
-| 🟢 Green | 🟡 Yellow | 🔴 Red |
-|:-:|:-:|:-:|
-| Low Risk | Medium Risk | High Risk |
-| In PCL / Co-using | Not in PCL | Security-critical / No validation |
-
----
-
-## Verification Policy
-
-Every cell in Column B is backed by a traceable source:
-
-```
-✅ In PCL + In BOM  →  "Part XYZ (NVL PCL §x.y iPoR; RVP RefDes EUxxx)"
-⚠️ In BOM only      →  "Part XYZ (NOT in NVL PCL; RVP RefDes EUxxx)"
-⬜ Neither           →  "NA"
-```
-
-> **Zero-hallucination guarantee:** No part number is written unless found in the actual source files.
+- Font: Calibri 10pt
+- Header: Bold, white text, centered
+- Data rows: Left-aligned, wrap text
+- Column widths: A=30, B=50, C=50, D=45
 
 ---
 
-## Quick Start
+## Scripts
 
-```powershell
-# Clone
-git clone https://github.com/billhsie/BOM_Risk_Assessment.git
+### `bom_reader.py`
 
-# Copy skill to your project
-Copy-Item -Recurse .github\skills\bom-risk <your-project>\.github\skills\
-```
+Reads xlsx without openpyxl (uses `zipfile` + `xml.etree.ElementTree`).
 
-**Requirements:** Windows · Office (Excel + Word) · Python 3.x (stdlib only) · VS Code + Copilot
+**Input:** RVP BOM xlsx path  
+**Output:** JSON array of `{row, partNumber, description, refDes, quantity}`
 
----
+### `bom_writer.py`
 
-## Repository Structure
+Generates Excel via PowerShell COM subprocess.
 
-```
-.github/skills/bom-risk/
-├── SKILL.md              ← Copilot skill definition
-├── scripts/
-│   ├── bom_reader.py     ← BOM parser (no pip dependencies)
-│   └── bom_writer.py     ← Excel generator
-└── references/
-    ├── risk_criteria.md  ← Risk classification rules
-    └── subsystem_template.md
-```
+**Input:** List of `(subsystem, colB_text, colC_text, colD_text, risk_level)`  
+**Output:** Color-coded xlsx at specified path
 
 ---
 
-## Roadmap
+## Limitations
 
-- [x] NVL-S Desktop (S021 UDIMM 1DPC)
-- [ ] NVL-H / NVL-UL / NVL-AX variants
-- [ ] PTL cross-generation co-using analysis
-- [ ] GitHub Actions CI/CD integration
-- [ ] PCL revision diff tracking
+- Requires Windows (Office COM automation)
+- PDF extraction quality depends on PDF structure
+- Network-isolated: no pip install, no API calls
+- Single-sheet BOM only (first sheet parsed)
 
 ---
 
-<p align="center"><i>Built with GitHub Copilot Agent Mode · Intel Hardware Engineering</i></p>
+<p align="center"><sub>Technical reference for <a href="../../../README.md">BOM Risk Assessment Skill</a></sub></p>
