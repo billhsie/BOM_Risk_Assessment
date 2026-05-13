@@ -60,8 +60,8 @@ sequenceDiagram
 ### 驗證政策
 
 ```
-✅ PCL 有 + BOM 有  →  "Part XYZ (NVL PCL §x.y; RVP RefDes EUxxx)"
-⚠️ BOM 有但 PCL 無 →  "Part XYZ (NOT in NVL PCL; RVP RefDes EUxxx)"
+✅ PCL 有 + BOM 有  →  "Part XYZ (PCL §x.y; RVP RefDes EUxxx)"
+⚠️ BOM 有但 PCL 無 →  "Part XYZ (NOT in PCL; RVP RefDes EUxxx)"
 ⬜ 兩邊都沒有      →  "NA"
 ```
 
@@ -70,7 +70,7 @@ sequenceDiagram
 ### 快速使用
 
 1. 在 VS Code 開啟 Copilot Chat
-2. 輸入：`Perform BOM risk assessment for NVL-S`
+2. 輸入：`Perform BOM risk assessment for <platform>`
 3. 提供 PCL PDF + RVP BOM Excel
 4. AI 自動完成 B 欄 → 送客戶填 C 欄 → AI 自動完成 D 欄
 
@@ -90,8 +90,8 @@ Copy-Item -Recurse .github\skills\bom-risk <your-project>\.github\skills\
 ## The Problem
 
 Every Intel platform migration requires a BOM risk review:
-- **1,700+ rows** of raw BOM data to sift through
-- Cross-reference against PCL documents (PDF, 150+ components)
+- **1,000–2,000+ rows** of raw BOM data to sift through
+- Cross-reference against PCL documents (PDF, 100+ components)
 - Classify risk for each IC subsystem
 - Produce color-coded Excel for management review
 
@@ -103,8 +103,8 @@ Every Intel platform migration requires a BOM risk review:
 
 ```mermaid
 flowchart LR
-    A[📄 RVP BOM xlsx<br/>1,700+ rows] --> F{{"🤖 AI Skill<br/>Filter · Validate · Assess"}}
-    B[📑 NVL PCL PDF<br/>150+ components] --> F
+    A[📄 RVP BOM xlsx<br/>1,000+ rows] --> F{{"🤖 AI Skill<br/>Filter · Validate · Assess"}}
+    B[📑 Platform PCL PDF<br/>100+ components] --> F
     F --> O[📊 Risk Report Excel<br/>Slate14 color-coded]
 ```
 
@@ -116,7 +116,7 @@ One command in VS Code Copilot Chat. No manual filtering. No guesswork.
 
 | Feature | Description |
 |---------|-------------|
-| 🔍 **Smart IC Extraction** | Automatically filters resistors/capacitors, identifies ICs & controllers from 1,700+ BOM rows |
+| 🔍 **Smart IC Extraction** | Automatically filters resistors/capacitors, identifies ICs & controllers from 1,000+ BOM rows |
 | 📋 **PCL Cross-Validation** | Extracts component data from PCL PDF and matches against BOM |
 | 🎨 **Slate14 Output** | Color-coded Excel matching Intel's standard review format |
 | 🛡️ **Zero Hallucination** | Dual-source verification — only writes what exists in source files |
@@ -142,7 +142,7 @@ One command in VS Code Copilot Chat. No manual filtering. No guesswork.
 ```mermaid
 flowchart TD
     subgraph "📥 Inputs"
-        PCL[NVL PCL PDF]
+        PCL[Platform PCL PDF]
         BOM[RVP BOM Excel]
     end
 
@@ -212,8 +212,8 @@ Matches **Intel Slate14 BOM Review Standard**:
 Every data point requires **dual-source traceability**:
 
 ```
-✅ In PCL + In BOM  →  "PS8825 (NVL PCL §4.2 iPoR; RVP BOM U3201)"
-⚠️ In BOM only      →  "RTQ3700HHN (NOT in NVL PCL; RVP BOM U1234)"  
+✅ In PCL + In BOM  →  "PS8825 (PCL §4.2 iPoR; RVP BOM U3201)"
+⚠️ In BOM only      →  "RTQ3700HHN (NOT in PCL; RVP BOM U1234)"  
 ⬜ Not found         →  "NA"
 ```
 
@@ -232,7 +232,7 @@ git clone https://github.com/billhsie/BOM_Risk_Assessment.git
 Copy-Item -Recurse .github\skills\bom-risk <your-project>\.github\skills\
 
 # 3. Open VS Code Copilot Chat and invoke:
-#    "Perform BOM risk assessment for NVL-S"
+#    "Perform BOM risk assessment for <your-platform>"
 ```
 
 ### Requirements
@@ -269,24 +269,30 @@ BOM_Risk_Assessment/
 
 ---
 
+## Supported Platforms
+
+- [x] Arrow Lake (ARL)
+- [x] Nova Lake (NVL) — Desktop / Mobile / Ultra
+- [x] Panther Lake (PTL)
+- [ ] Any Intel client platform with PCL + RVP BOM
+
 ## Roadmap
 
-- [x] NVL-S Desktop (S021 UDIMM 1DPC)
-- [ ] NVL-H / NVL-UL / NVL-AX platform variants
-- [ ] PTL cross-generation co-using analysis
+- [x] Multi-platform support (any PCL + BOM pair)
+- [ ] Cross-generation co-using analysis
 - [ ] GitHub Actions CI/CD integration
 - [ ] PCL revision diff tracking
-- [ ] Multi-platform comparison mode
+- [ ] Multi-platform side-by-side comparison
 
 ---
 
 ## Contributing
 
-This skill is designed for Intel VB hardware engineers. To adapt for your platform:
+This skill works with **any Intel client platform**. To use on a new platform:
 
-1. Update `references/subsystem_template.md` with your subsystem list
-2. Update `references/risk_criteria.md` with your risk rules
-3. Provide your platform's PCL PDF + RVP BOM xlsx
+1. Provide the platform's PCL PDF + RVP BOM xlsx
+2. (Optional) Customize `references/subsystem_template.md` for platform-specific subsystems
+3. (Optional) Adjust `references/risk_criteria.md` for special risk rules
 
 ---
 

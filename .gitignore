@@ -1,5 +1,6 @@
 # Intel Confidential — keep PCL PDF and proprietary BOMs out of git
 *.pdf
+*.pptx
 870781_*.pdf
 
 # Customer / proprietary BOM Excel files
