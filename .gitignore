@@ -1,0 +1,26 @@
+# Intel Confidential — keep PCL PDF and proprietary BOMs out of git
+*.pdf
+870781_*.pdf
+
+# Customer / proprietary BOM Excel files
+NVL-S_S021_*.xlsx
+Slate14*.xlsx
+
+# Generated output (sample only — engineers regenerate)
+NVL-S_BOM_Risk_Assessment.xlsx
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+~$*
+*.tmp
+
+# VS Code workspace settings (per-user)
+.vscode/settings.json
