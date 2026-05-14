@@ -1,211 +1,156 @@
 ---
 name: bom-risk
-description: "BOM Risk Assessment skill. Use when user asks to: perform BOM risk assessment, generate platform migration risk report, analyze component risks, compare old vs new platform BOMs, auto-filter IC from RVP BOM, fill B column from PCL, or produce color-coded Low/Medium/High Excel. Supports Intel NVL PCL PDF lookup and RVP BOM IC extraction."
-argument-hint: "platform name or BOM file path (e.g. 'NVL-S' or 'C:/bom.xlsx')"
+description: "BOM Risk Assessment skill. Use when user asks to: perform BOM risk assessment, generate platform migration risk report, compare RVP BOM against PCL, fill B column from PCL, or produce timestamped color-coded Low/Medium/High Excel for any Intel client platform (ARL/NVL/PTL etc)."
+argument-hint: "platform name and PCL/BOM file paths"
 ---
 
 # BOM Risk Assessment Skill
 
-## Overview
+Automates platform-migration BOM review by cross-validating RVP BOM against the Platform Component List (PCL).
 
-Automates the most time-consuming part of platform migration BOM review:
+| Step | Manual | With This Skill |
+|------|--------|-----------------|
+| Filter ICs from RVP BOM (~1700 rows) | 2–3 hr | < 1 min |
+| Look up each IC against PCL PDF | 1–2 hr | < 1 min |
+| Fill B column with PCL reference parts | 1 hr | Automatic |
+| Risk-rate Column D + color-code | 1–2 hr | Automatic |
+| **Total** | **~6 hr** | **~10 min** |
 
-| Step | Manual (Before) | With This Skill |
-|------|----------------|-----------------|
-| Filter ICs from RVP BOM (~1700 rows) | 2–3 hours | < 1 min |
-| Look up each IC against PCL PDF | 1–2 hours | < 1 min |
-| Fill B column with RVP reference | 1 hour | Automatic |
-| Write D column risk text + color | 1–2 hours | Automatic |
-| **Total** | **~6 hours** | **~10 minutes** |
+## When to Invoke
 
-## When to Use
+Trigger on phrases like:
+- "do BOM risk assessment", "BOM risk", "platform migration risk"
+- "fill B column from PCL", "compare old vs new platform BOM"
+- "which components are on the PCL"
+- "generate risk Excel for <platform>"
 
-Invoke this skill when user says any of:
-- "do BOM risk assessment", "generate risk report", "BOM risk"
-- "fill B column from PCL", "compare old and new platform BOM"
-- "which components are on the NVL PCL", "auto-filter IC from BOM"
-- "produce risk Excel", "platform migration risk"
-
-## Inputs Required
+## Inputs
 
 | Input | Description | Required |
 |-------|-------------|----------|
-| **Platform target** | e.g. `NVL-S`, `NVL-UL`, `NVL-H` | Yes |
-| **PCL PDF** | e.g. `870781_NVL_DT_Mobile_PCL_Rev0p7.pdf` | Yes |
-| **RVP BOM Excel** | Raw production BOM (e.g. `NVL-S_S021_UDIMM_1DPC_BOM.xlsx`) | For B column |
-| **Subsystem template** | Fixed A-column list (from reference file below) | Auto-loaded |
-| **Customer BOM** | Customer fills C column after receiving output | For D column |
+| Platform target | e.g. `NVL-S`, `PTL-H`, `ARL-U` | Yes |
+| PCL PDF | e.g. `870781_NVL_DT_Mobile_PCL_Rev0p7.pdf` | Yes |
+| BOM template (xlsx) | Subsystem list in Column A | Yes |
+| Customer BOM (Col C) | Filled by customer between Phase 1 and Phase 2 | For D column |
 
-## Output Format
+## Output
 
-Excel file with 4 columns, matching Intel platform BOM review standard:
+Excel file named `<Platform>_BOM_Risk_Assessment_YYYYMMDD_HHMMSS.xlsx` (timestamped — never overwrites).
 
-```
-Col A  Subsystem              ← FIXED (37 standard entries)
-Col B  RVP Reference BOM      ← AI fills from PCL + RVP BOM
-Col C  Customer BOM           ← Customer fills in
-Col D  Risk Assessment        ← AI fills after C is provided
-```
+| Col | Content | Filled By |
+|-----|---------|-----------|
+| A | Subsystem (from template) | Template |
+| B | RVP Reference BOM — `Vendor PartNumber (Device Category) [PCL Remarks]` | **AI (Phase 1)** |
+| C | Customer BOM | Customer |
+| D | Risk: Low / Medium / High + reason | **AI (Phase 2)** |
 
-**Color coding (Column D cell background):**
-- 🟩 **Green**  = Low risk
-- 🟨 **Yellow** = Medium risk  
-- 🟥 **Red**    = High risk
-- 🟨 **Amber**  (Column B) = Component NOT in PCL — customer must verify
+Color coding (Column D background):
+- 🟢 `#92D050` Low · 🟡 `#FFFF00` Medium · 🔴 `#C00000` High
 
 ---
 
 ## Procedure
 
-### Phase 1 — Generate B-Column Output (RVP → PCL lookup)
+### Phase 1 — Build Column B from PCL
 
-**Step 1: Read PCL PDF**
+**Step 1: Convert PCL PDF → text**
 
-Use Word COM to extract PCL text:
 ```powershell
-$word = New-Object -ComObject Word.Application
-$word.Visible = $false
-$doc = $word.Documents.Open($pclPdfPath, $false, $true)
-$doc.SaveAs2("$env:TEMP\pcl_text.txt", 2)
-$doc.Close($false); $word.Quit()
+powershell -File scripts/pdf_to_text.ps1 `
+    -PdfPath "<PCL.pdf>" `
+    -TxtPath "$env:TEMP\pcl_text.txt"
 ```
 
-Parse the extracted text for each subsystem using the rules in [Risk Criteria](./references/risk_criteria.md).
+**Step 2: Parse PCL into structured entries**
 
-**Key PCL parsing rules for NVL-S:**
-- Check `PCL Remarks` column — entries marked `For NVL-UL only` are **NOT** applicable to S
-- Entries marked `For NVL-S` or `For NVL-S/Hx/HU/AX/AM` ARE applicable
-- `No-S` prefix on CMS column = CMS not supported, but component may still be valid
-- Priority order: `iPoR` > `ECO` > `Open Lab` > `iPoc` > `Heirs`
-
-**Step 2: Extract ICs from RVP BOM**
-
-Read the production BOM Excel (standard Intel BOM format: IDN/Lvl/ItemTyp/ItemNo/ItemDesc/RefDes/MfrName/MfrPart).
-
-Filter rules — **KEEP** these Item Type values:
-```
-ASIC, AUDIO, ANALOG-SWITCH, BUFFER/DRIVER, BUS-TRANSCEIVERS,
-I/O-IC, IC-SWITCHES, IC-VOLTAGE-REG, LINEAR-DRIVER,
-LINEAR-INTERFACE, LOGIC-GATES, MEMORY, MICROCONTROLLER,
-OTHERVLSI, RFID_CHIP_PACKAGE, TRANSLATORS
+```powershell
+py scripts/parse_pcl.py
 ```
 
-For `NEW_BIZ_RDV` rows: only keep if RefDes starts with `U` (IC) or matches known IC part numbers. Skip if RefDes starts with `C`, `R`, `L`, `J`, `F`, `FB`.
+Output: `$env:TEMP\pcl_entries.json` — array of  
+`{ sn, subsystem, device_category, vendor, part_number, remarks }`
 
-**DISCARD** (passives & mechanical):
+The PCL table columns extracted: **S/N · Sub System · Device Category · Vendor · Part Number · PCL Remarks**.
+
+**Step 3: Map subsystems → PCL entries**
+
+```powershell
+py scripts/fill_b_column.py
 ```
-CERAMIC-CAP, RESISTOR-DISCRETE, HIGH-CURRENT-INDUC, FERRITE-BEADS,
-CRYSTAL, DIODES, FET-*, CONNECTOR_*, POLYSWITCH, ALUM-ELEC-CAP,
-SPECIALITY-CAP, SMALL-SIGNAL-INDUC, SPPRINTEDBOARD, STANDOFF,
-COMMON-MODE-CHOKE, ZENER-DIODE, THRMSTR, LED*, BIPOLAR*, BATTERY*,
-BOARD-TO-BOARD, SWITCHES, HEADER-CONN, SOCKET-CONNECTOR
+
+Mapping rules (see [scripts/fill_b_column.py](./scripts/fill_b_column.py)):
+
+| Subsystem | PCL Source |
+|-----------|------------|
+| CPU | User input (PCL doesn't list CPU) |
+| TBT Re-timer | All entries with Device Category = `TBT Retimer` |
+| HDMI2.1 Re-driver | Device Category = `HDMI Retimer` |
+| Single eUSB2 re-driver | Part Number contains `PTN3222` |
+| Dual eUSB2 re-driver | Part Number contains `TUSB2E22` |
+| IMVP9.3 | Device Category = `IMVP` |
+| VNNAON | Device Category = `Voltage Regulator` |
+| USB Type-C PD controller | Device Category contains `PD Controller` |
+| Embedded Controller | Device Category = `Embedded Controller` |
+| Audio Codec | Device Category = `Audio Codec` |
+| TPM | Device Category = `Discrete TPM` |
+| LAN Controller | Device Category = `Ethernet Controller` |
+| USB3 re-driver | `USB Redriver/Retimer` (excluding eUSB2) |
+| Accelerometer / IMU / Magnetometer / SAR | Sensor Device Category match |
+| Charger | Device Category = `Charger` |
+| Memory | "Refer to Platform Memory Enablement Guide (RDC#…)" |
+| **Anything else not in PCL** | **`NA` (do NOT guess)** |
+
+**Cell format:** `Vendor PartNumber (Device Category) [PCL Remarks]`  
+Multiple parts joined by newline. `[PCL Remarks]` only added if non-empty (used for platform applicability like `For PTL-UH platform` or `For NVL-S, Hx, HU, AX, AM`).
+
+**Step 4: Generate timestamped Excel**
+
+```powershell
+powershell -File scripts/gen_bom_b.ps1
 ```
 
-**Step 3: Map ICs → Subsystem (A column)**
-
-Use the fixed subsystem template: [Subsystem Template](./references/subsystem_template.md)
-
-Matching logic (in order):
-1. Exact Part Number match in PCL → use PCL Subsystem + PCL category tag
-2. Partial Part Number match (prefix match) → use match + note version
-3. Mfr Name + function keyword match → use keyword mapping table
-4. No match found → mark as `[NOT in NVL PCL]` (amber background)
-
-**Step 4: Write Output Excel**
-
-Run: `py .github/skills/bom-risk/scripts/bom_writer.py --config config.json`
-
-See [bom_writer.py](./scripts/bom_writer.py) for full API.
-
-Output cell formatting:
-- Column B amber = NOT in PCL
-- Column C = light green empty cells (customer fills)  
-- Column D = gray italic "Pending" until C is filled
-- Row 1 = dark blue header, white text
-- Alternating row shading for readability
+Produces `<Platform>_BOM_Risk_Assessment_YYYYMMDD_HHMMSS.xlsx`.
 
 ---
 
-### Phase 2 — Generate D-Column Risk Assessment (after C is filled)
+### Phase 2 — Risk Assessment (after Customer Returns Column C)
 
-**Step 5: Read the Customer-Filled Excel**
+For each row, classify Column D risk:
 
-Read Column C values. For each row compare B (reference) vs C (customer).
+| Customer Part (C) vs PCL | Risk | D-cell text |
+|--------------------------|:----:|-------------|
+| C in PCL as iPoR | 🟢 Low | `Low: on PCL Rev0.7 (iPoR)` |
+| C in PCL as ECO / Open Lab / iPoC | 🟢 Low | `Low: on PCL (ECO category)` |
+| C == B (same as RVP) | 🟢 Low | `Low: Co-using with RVP` |
+| C not in PCL but established (proven silicon) | 🟡 Medium | `Medium: not on PCL, OEM validation needed` |
+| C is security-critical AND not in PCL | 🔴 High | `High: security-critical, not on PCL` |
+| C is brand-new with no validation data | 🔴 High | `High: no validation evidence` |
 
-**Step 6: Apply Risk Rules**
+**Always check `PCL Remarks` column for platform-specific parts:**  
+e.g. `For NVL-UL` ≠ applicable to NVL-S.
 
-See full rules in [Risk Criteria](./references/risk_criteria.md). Summary:
-
-| Condition | Risk | D-column text format |
-|-----------|------|----------------------|
-| C == B, or C is same family | Low | `Low: Co-using on <platform>` |
-| C part is in PCL as iPoR | Low | `Low: on the Intel <PCL> platform` |
-| C part is in PCL as ECO/Open Lab | Low-Medium | `Low: on the Intel <PCL>\n(Category: ECO)` |
-| C part NOT in PCL, but established | Medium | `Medium:\nnot on the <PCL> list\n<reason>` |
-| C part is security-critical + not PCL | High | `High:\nNew security-critical function\n<reason>` |
-| C part is brand new, no validation | High | `High:\nnot on the NVL PCL\n<reason>` |
-
-**Step 7: Color-code and Save**
-
-Apply background color to Column D cells:
-- Green  (`0x92D050`) = Low
-- Yellow (`0xFFFF00`) = Medium  
-- Red    (`0xFF0000`) = High
-
-Save output as `<ProjectName>_BOM_Risk_<date>.xlsx`
+Full rules: [references/risk_criteria.md](./references/risk_criteria.md)
 
 ---
 
-## Important Limitations (Do Not Guess)
+## Verification Policy (CRITICAL — do not violate)
 
-1. **PCL does NOT cover**: Thermal IC, Audio Amplifier, Security Module (Broadcom Citadel), GPIO expander, USB MUX, small VRs (VCCST/VCCPRIM/MEMORY VR/3V/5V). Mark these amber in B column — customer must provide own validation evidence.
-
-2. **PCL NVL-S platform filtering**: Always check `PCL Remarks` column. `For NVL-UL` entries = NOT applicable to S.
-
-3. **IC classification accuracy**: `NEW_BIZ_RDV` type in BOM is mixed — contains both ICs and passives. Always use RefDes prefix to confirm.
-
-4. **Customer C-column is mandatory for D-column** — do not generate risk assessment without knowing the actual customer component.
+1. **Never fabricate part numbers.** If a subsystem has no matching PCL entry, write `NA`. Customer will fill via Column C.
+2. **Always include Device Category** after the part number so reviewers can verify.
+3. **Always include PCL Remarks** in `[ ]` when present — these mark platform applicability.
+4. **Filename must include timestamp** (`YYYYMMDD_HHMMSS`) — never overwrite previous reports.
 
 ---
 
-## References
+## Files Provided by This Skill
 
-- [Risk Criteria Rules](./references/risk_criteria.md) — Full Low/Medium/High decision logic
-- [Subsystem Template](./references/subsystem_template.md) — Fixed 37-entry A-column list
-- [BOM Reader Script](./scripts/bom_reader.py) — Extracts ICs from production BOM Excel
-
-The `assessments.json` format:
-```json
-[
-  {
-    "subsystem": "TBT Re-timer",
-    "old_component": "Intel Hayden Bridge",
-    "new_component": "Intel June Bridge",
-    "risk_level": "Low",
-    "reason": "on the Intel NVLPCL platform"
-  },
-  {
-    "subsystem": "Security Module",
-    "old_component": "Broadcom CV3+",
-    "new_component": "Broadcom CV4 (BCM58202TB1KFBG10)",
-    "risk_level": "Medium",
-    "reason": "not on the NVL PCL.\nSecure boot coupling + compliance assumptions for CNSA 2.0."
-  }
-]
-```
-
-### Step 5 — Summarize to User
-After generating the file, report:
-- Total components assessed
-- Count by risk level (High / Medium / Low)
-- List all High and Medium risk items with their reasons
-- Output file path
-
-## Example Invocation
-User: "Do BOM risk assessment for my new NVL platform. Here's the BOM file: C:\project\bom.xlsx"
-
-## Notes
-- If multiple memory types (e.g., LPDDR5 + SODIMM), create one Excel sheet per memory type
-- The CPU row typically has no risk assessment (leave column D empty)
-- "same" in new component column means identical to old → always Low: Co-using
-- Security-related subsystems (TPM, Security Module, SPI Tamper PLD, Fingerprint Reader) need extra scrutiny
+| File | Purpose |
+|------|---------|
+| [scripts/pdf_to_text.ps1](./scripts/pdf_to_text.ps1) | PDF → text via Word COM (no external deps) |
+| [scripts/parse_pcl.py](./scripts/parse_pcl.py) | Parse PCL text into structured JSON entries |
+| [scripts/fill_b_column.py](./scripts/fill_b_column.py) | Map subsystems → PCL entries, build Column B |
+| [scripts/gen_bom_b.ps1](./scripts/gen_bom_b.ps1) | Generate Slate14-style timestamped Excel |
+| [scripts/bom_reader.py](./scripts/bom_reader.py) | (Optional) Read raw RVP BOM xlsx for IC extraction |
+| [scripts/bom_writer.py](./scripts/bom_writer.py) | (Optional) Excel writer helper for full Phase 2 |
+| [references/risk_criteria.md](./references/risk_criteria.md) | Full risk classification rules |
+| [references/subsystem_template.md](./references/subsystem_template.md) | Standard subsystem list |

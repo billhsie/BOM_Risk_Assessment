@@ -6,9 +6,11 @@
 # Customer / proprietary BOM Excel files
 NVL-S_S021_*.xlsx
 Slate14*.xlsx
+BOM_temp.xlsx
 
-# Generated output (sample only — engineers regenerate)
-NVL-S_BOM_Risk_Assessment.xlsx
+# Generated output (timestamped — engineers regenerate)
+NVL-S_BOM_Risk_Assessment*.xlsx
+*_BOM_Risk_Assessment_*.xlsx
 
 # Python
 __pycache__/
