@@ -53,6 +53,12 @@ Color coding (Column D background):
 
 ### Phase 1 — Build Column B from PCL
 
+**Step 0: Ask user for the target platform** (REQUIRED, must be the first question)
+
+> "Which Intel client platform are you assessing? (e.g. NVL-S, NVL-H, NVL-UL, PTL-H, ARL-H)"
+
+The platform string is passed to `fill_b_column.py` and decides which PCL entries are applicable based on the `PCL Remarks` text. Different platforms produce **different** Column B (e.g. NVL-S includes `MP2961B`, NVL-H excludes it).
+
 **Step 1: Convert PCL PDF → text**
 
 ```powershell
@@ -72,18 +78,25 @@ Output: `$env:TEMP\pcl_entries.json` — array of
 
 The PCL table columns extracted: **S/N · Sub System · Device Category · Vendor · Part Number · PCL Remarks**.
 
-**Step 3: Map subsystems → PCL entries**
+**Step 3: Map subsystems → PCL entries (platform-aware)**
 
 ```powershell
-py scripts/fill_b_column.py
+py scripts/fill_b_column.py <PLATFORM>     # e.g. NVL-S, NVL-H
 ```
+
+Platform filter rules (applied via `PCL Remarks` substring match):
+- `For NVLUL` / `For NVL-UL` → entry applies to **NVL-UL only** (excluded from NVL-S, NVL-H)
+- `For PTLUH` / `For PTL-UH` → entry applies to **PTL-UH only** (excluded from NVL-*)
+- `For NVL S, Hx, ...` → entry applies to listed NVL variants only
+- `For NVL` (no specific suffix) → applies to all NVL platforms
+- No `For ...` clause → applies to all platforms in the PCL family
 
 Mapping rules (see [scripts/fill_b_column.py](./scripts/fill_b_column.py)):
 
 | Subsystem | PCL Source |
 |-----------|------------|
 | CPU | User input (PCL doesn't list CPU) |
-| TBT Re-timer | All entries with Device Category = `TBT Retimer` |
+| TBT Re-timer | Device Category = `TBT Retimer` |
 | HDMI2.1 Re-driver | Device Category = `HDMI Retimer` |
 | Single eUSB2 re-driver | Part Number contains `PTN3222` |
 | Dual eUSB2 re-driver | Part Number contains `TUSB2E22` |
@@ -94,11 +107,20 @@ Mapping rules (see [scripts/fill_b_column.py](./scripts/fill_b_column.py)):
 | Audio Codec | Device Category = `Audio Codec` |
 | TPM | Device Category = `Discrete TPM` |
 | LAN Controller | Device Category = `Ethernet Controller` |
-| USB3 re-driver | `USB Redriver/Retimer` (excluding eUSB2) |
-| Accelerometer / IMU / Magnetometer / SAR | Sensor Device Category match |
+| USB3 re-driver | `USB Redriver/Retimer` (excluding eUSB2/PTN3222/TUSB2E22) |
+| Accelerometer (3-axis) | Device Category = `3-Axis Accelerometer` (excluding IMU/Mag whitelist) |
+| Accelerometer+Gyro (IMU 2in1) | Device Category = `Accelerometer + Gyroscope Sensor`, plus whitelist (`LSM6DSV32`) |
+| Magnetometer for 2in1 | Device Category contains `Magnetometer`, plus whitelist (`BMM350`) |
+| SAR sensor | Device Category contains `SAR` |
 | Charger | Device Category = `Charger` |
+| BIOS ROM (SPINOR) | Hardcoded: `MX77U51250FZ4I42`, `W25R512NWEIQ` (PCL section 12 parser is garbled) |
 | Memory | "Refer to Platform Memory Enablement Guide (RDC#…)" |
 | **Anything else not in PCL** | **`NA` (do NOT guess)** |
+
+**Whitelist overrides** (parts the PCL parser miscategorized as bare `Accelerometer`):
+- `BMM350` → routed to Magnetometer (DC label overridden to `Magnetometer`)
+- `LSM6DSV32` → routed to Accel+Gyro IMU (DC label overridden to `Accelerometer + Gyroscope Sensor`)
+- Exact part-number match used to avoid catching siblings (e.g. `LSM6DSV320X` stays in Accelerometer)
 
 **Cell format:** `Vendor PartNumber (Device Category) [PCL Remarks]`  
 Multiple parts joined by newline. `[PCL Remarks]` only added if non-empty (used for platform applicability like `For PTL-UH platform` or `For NVL-S, Hx, HU, AX, AM`).
@@ -106,10 +128,12 @@ Multiple parts joined by newline. `[PCL Remarks]` only added if non-empty (used 
 **Step 4: Generate timestamped Excel**
 
 ```powershell
-powershell -File scripts/gen_bom_b.ps1
+powershell -File scripts/gen_bom_b.ps1 `
+    -JsonPath "$env:TEMP\bom_b_filled.json" `
+    -OutDir   "<repo or output folder>"
 ```
 
-Produces `<Platform>_BOM_Risk_Assessment_YYYYMMDD_HHMMSS.xlsx`.
+Produces `<Platform>_BOM_Risk_Assessment_YYYYMMDD_HHMMSS.xlsx`. The platform prefix is read from the JSON header (set by Step 3).
 
 ---
 
@@ -135,10 +159,14 @@ Full rules: [references/risk_criteria.md](./references/risk_criteria.md)
 
 ## Verification Policy (CRITICAL — do not violate)
 
-1. **Never fabricate part numbers.** If a subsystem has no matching PCL entry, write `NA`. Customer will fill via Column C.
-2. **Always include Device Category** after the part number so reviewers can verify.
-3. **Always include PCL Remarks** in `[ ]` when present — these mark platform applicability.
-4. **Filename must include timestamp** (`YYYYMMDD_HHMMSS`) — never overwrite previous reports.
+1. **Always ask for the target platform first** (Step 0). Different platforms produce different Column B due to PCL Remarks filtering.
+2. **Never fabricate part numbers.** If a subsystem has no matching PCL entry, write `NA`. Customer will fill via Column C.
+3. **Always include Device Category** after the part number so reviewers can verify.
+4. **Always include PCL Remarks** in `[ ]` when present — these mark platform applicability.
+5. **Filename must include timestamp** (`YYYYMMDD_HHMMSS`) — never overwrite previous reports.
+6. **Respect platform filter exclusions:**
+   - Entries marked `For NVL-UL` are excluded from NVL-S / NVL-H
+   - Entries marked `For PTL-UH` are excluded from all NVL platforms
 
 ---
 
