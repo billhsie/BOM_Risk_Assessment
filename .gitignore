@@ -7,6 +7,8 @@
 NVL-S_S021_*.xlsx
 Slate14*.xlsx
 BOM_temp.xlsx
+# ...but DO ship the template inside the skill so others can use it
+!.github/skills/bom-risk/templates/BOM_temp.xlsx
 
 # Generated output (timestamped — engineers regenerate)
 NVL-S_BOM_Risk_Assessment*.xlsx

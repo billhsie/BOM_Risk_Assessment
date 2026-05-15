@@ -195,7 +195,20 @@ m['5V VR'] = 'NA'
 
 # ---------- Read template subsystem list ----------
 NS = {'s':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
-with zipfile.ZipFile(r'c:\Users\billhsie\OneDrive - Intel Corporation\Desktop\DATA\TOOL\AI_VB\BOM_risk\BOM_temp.xlsx') as z:
+# Search for BOM_temp.xlsx in standard locations (env var, CWD, skill templates folder)
+import os as _os
+_here = _os.path.dirname(_os.path.abspath(__file__))
+_template_candidates = [
+    _os.environ.get('BOM_TEMPLATE', ''),
+    _os.path.join(_os.getcwd(), 'BOM_temp.xlsx'),
+    _os.path.normpath(_os.path.join(_here, '..', 'templates', 'BOM_temp.xlsx')),
+    _os.path.normpath(_os.path.join(_here, '..', '..', '..', '..', 'BOM_temp.xlsx')),
+]
+_template = next((p for p in _template_candidates if p and _os.path.isfile(p)), None)
+if not _template:
+    raise FileNotFoundError('BOM_temp.xlsx not found. Set $BOM_TEMPLATE or place in CWD.')
+print(f'Template: {_template}')
+with zipfile.ZipFile(_template) as z:
     with z.open('xl/sharedStrings.xml') as f:
         ss = ET.parse(f).getroot()
     strings = [''.join(t.text or '' for t in si.iter('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}t')) for si in ss.findall('s:si', NS)]

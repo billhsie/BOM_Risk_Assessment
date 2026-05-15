@@ -1,6 +1,6 @@
 param(
     [string]$JsonPath = "$env:TEMP\bom_b_filled.json",
-    [string]$OutDir = "c:\Users\billhsie\OneDrive - Intel Corporation\Desktop\DATA\TOOL\AI_VB\BOM_risk"
+    [string]$OutDir = (Get-Location).Path
 )
 
 $ErrorActionPreference = 'Stop'
