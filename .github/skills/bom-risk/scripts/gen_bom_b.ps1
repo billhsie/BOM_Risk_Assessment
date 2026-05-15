@@ -5,8 +5,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$ts = Get-Date -Format 'yyyyMMdd_HHmmss'
-$outFileName = "NVL-S_BOM_Risk_Assessment_$ts.xlsx"
+$payload = Get-Content -Path $JsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$pf  = if ($payload.platform) { $payload.platform } else { 'Platform' }
+$ts  = Get-Date -Format 'yyyyMMdd_HHmmss'
+$outFileName = "${pf}_BOM_Risk_Assessment_$ts.xlsx"
 $tempPath  = Join-Path $env:TEMP $outFileName
 $finalPath = Join-Path $OutDir $outFileName
 
