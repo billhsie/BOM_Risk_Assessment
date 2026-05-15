@@ -152,8 +152,13 @@ m['Accelerometer+Gyro for 2in1'] = join_parts([e for e in pcl if 'BMI' in e.get(
 m['Magnetometer for 2in1'] = join_parts([e for e in pcl if 'Magnetometer' in e.get('device_category','') or 'BMM' in e.get('part_number','') or 'LIS2MDL' in e.get('part_number','')])
 m['SAR sensor'] = join_parts(by_dc('SAR'))
 m['GMR sensor'] = 'NA'
-bios = [e for e in pcl if any(k in e.get('part_number','') for k in ['MX77U','W25R','W25Q','QW25R'])]
-m['BIOS ROM'] = join_parts(bios) if bios else 'NA'
+# BIOS ROM = SPI NOR Flash; PCL section 12 parsing is garbled (vendor mixed into part_number)
+# Search raw field instead, then build correct entries manually
+BIOS_ROM_PARTS = [
+    {'vendor': 'Macronix', 'part_number': 'MX77U51250FZ4I42', 'device_category': 'SPINOR', 'remarks': 'SPI, QFN8, 64MB, RPMC'},
+    {'vendor': 'Winbond',  'part_number': 'W25R512NWEIQ',     'device_category': 'SPINOR', 'remarks': 'SPI, QFN8, 64MB, RPMC'},
+]
+m['BIOS ROM'] = join_parts(BIOS_ROM_PARTS)
 m['Fingerprint Reader module'] = 'NA'
 m['USB2 MUX/deMUX'] = 'NA'
 m['VCCST power switch'] = 'NA'
