@@ -92,6 +92,12 @@ def fmt(e):
     dc = e.get('device_category','').strip().rstrip(',.')
     # Strip garbled trailing tokens like ' -, --' or ' -, -AG-- ---- AG--'
     dc = re.sub(r'\s*[-,]+(\s*[-,A-Z]+)*\s*$', '', dc).strip()
+    # Override miscategorized parts (PCL parser placed them under bare 'Accelerometer')
+    pn_upper = e.get('part_number','').upper()
+    if 'BMM350' in pn_upper:
+        dc = 'Magnetometer'
+    elif 'LSM6DSV32' in pn_upper and 'LSM6DSV320X' not in pn_upper:
+        dc = 'Accelerometer + Gyroscope Sensor'
     rem = e.get('remarks','').strip()
     if 'Confidential' in rem or 'Other names' in rem or len(rem) > 80:
         rem = ''
@@ -152,12 +158,23 @@ m['USB Current Limit IC'] = 'NA'
 #   Accelerometer            = PCL '3-Axis Accelerometer' (all entries, no IMU split)
 #   Accelerometer+Gyro 2in1  = PCL 'Accelerometer + Gyroscope Sensor' only
 #   Magnetometer for 2in1    = PCL 'Magnetometer' / 'Axis Magnetometer' only
+# Whitelist overrides for parts the PCL parser miscategorized as bare 'Accelerometer':
+IMU_WHITELIST_PN = ['LSM6DSV32']           # IMU (Accel+Gyro) sold under generic 'Accelerometer' DC
+MAG_WHITELIST_PN = ['BMM350']              # Magnetometer sold under generic 'Accelerometer' DC
+
+def _has_pn(e, pns):
+    pn = e.get('part_number','').upper().strip()
+    return any(pn == k.upper() for k in pns)
+
 m['Accelerometer'] = join_parts(
-    [e for e in pcl if e.get('device_category','').strip() == 'Axis Accelerometer'])
+    [e for e in pcl if e.get('device_category','').strip() == 'Axis Accelerometer'
+     and not _has_pn(e, IMU_WHITELIST_PN + MAG_WHITELIST_PN)])
 m['Accelerometer+Gyro for 2in1'] = join_parts(
-    [e for e in pcl if e.get('device_category','').strip().startswith('Accelerometer + Gyroscope')])
+    [e for e in pcl if e.get('device_category','').strip().startswith('Accelerometer + Gyroscope')
+     or _has_pn(e, IMU_WHITELIST_PN)])
 m['Magnetometer for 2in1'] = join_parts(
-    [e for e in pcl if 'Magnetometer' in e.get('device_category','')])
+    [e for e in pcl if 'Magnetometer' in e.get('device_category','')
+     or _has_pn(e, MAG_WHITELIST_PN)])
 m['SAR sensor'] = join_parts(by_dc('SAR'))
 m['GMR sensor'] = 'NA'
 # BIOS ROM = SPI NOR Flash; PCL section 12 parsing is garbled (vendor mixed into part_number)
