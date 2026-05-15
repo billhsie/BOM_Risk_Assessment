@@ -90,6 +90,8 @@ def fmt(e):
     pn = e['part_number'].strip().rstrip(',.)')
     if pn.startswith('PTPS'): pn = pn[1:]
     dc = e.get('device_category','').strip().rstrip(',.')
+    # Strip garbled trailing tokens like ' -, --' or ' -, -AG-- ---- AG--'
+    dc = re.sub(r'\s*[-,]+(\s*[-,A-Z]+)*\s*$', '', dc).strip()
     rem = e.get('remarks','').strip()
     if 'Confidential' in rem or 'Other names' in rem or len(rem) > 80:
         rem = ''
@@ -146,23 +148,16 @@ m['USB3 re-driver'] = join_parts(by_dc('USB Redriver', 'USB Repeater',
 m['PCIE re-driver'] = 'NA'
 m['Power Share (BC1.2)'] = 'NA'
 m['USB Current Limit IC'] = 'NA'
-# Sensor classification per PCL device_category:
-#   3-Axis Accelerometer        -> 'Axis Accelerometer'
-#   3-Axis Gyroscope            -> 'Axis Gyroscope'
-#   Accelerometer + Gyroscope   -> starts with 'Accelerometer + Gyroscope'
-# Pure Accelerometer = in Axis Accelerometer AND NOT also in Axis Gyroscope
-# IMU (Accel+Gyro 2in1)         = in Accel+Gyro category, OR in BOTH Axis Accel AND Axis Gyro
-gyro_pn = {(e.get('vendor','').lower(), e.get('part_number','').lower())
-           for e in pcl if e.get('device_category','').strip() == 'Axis Gyroscope'}
-accel_axis = [e for e in pcl if e.get('device_category','').strip() == 'Axis Accelerometer']
-pure_accel = [e for e in accel_axis
-              if (e.get('vendor','').lower(), e.get('part_number','').lower()) not in gyro_pn]
-imu_dual   = [e for e in pcl if e.get('device_category','').strip().startswith('Accelerometer + Gyroscope')]
-imu_combo  = [e for e in accel_axis
-              if (e.get('vendor','').lower(), e.get('part_number','').lower()) in gyro_pn]
-m['Accelerometer'] = join_parts(pure_accel)
-m['Accelerometer+Gyro for 2in1'] = join_parts(imu_combo + imu_dual)
-m['Magnetometer for 2in1'] = join_parts([e for e in pcl if 'Magnetometer' in e.get('device_category','') or 'BMM' in e.get('part_number','') or 'LIS2MDL' in e.get('part_number','')])
+# Sensor classification: STRICT PCL device_category mapping
+#   Accelerometer            = PCL '3-Axis Accelerometer' (all entries, no IMU split)
+#   Accelerometer+Gyro 2in1  = PCL 'Accelerometer + Gyroscope Sensor' only
+#   Magnetometer for 2in1    = PCL 'Magnetometer' / 'Axis Magnetometer' only
+m['Accelerometer'] = join_parts(
+    [e for e in pcl if e.get('device_category','').strip() == 'Axis Accelerometer'])
+m['Accelerometer+Gyro for 2in1'] = join_parts(
+    [e for e in pcl if e.get('device_category','').strip().startswith('Accelerometer + Gyroscope')])
+m['Magnetometer for 2in1'] = join_parts(
+    [e for e in pcl if 'Magnetometer' in e.get('device_category','')])
 m['SAR sensor'] = join_parts(by_dc('SAR'))
 m['GMR sensor'] = 'NA'
 # BIOS ROM = SPI NOR Flash; PCL section 12 parsing is garbled (vendor mixed into part_number)
