@@ -12,7 +12,8 @@ print(f"Platform: {PLATFORM}")
 # Remarks patterns that EXCLUDE an entry for a given platform
 EXCLUDE_FOR_PLATFORM = {
     'NVL-S': ['NVLUL', 'NVL-UL', 'NVL_UL', 'PTLUH', 'FOR PTLUH'],
-    'NVL-H': ['NVLUL', 'NVL-UL', 'NVL_UL', 'PTLUH', 'FOR PTLUH'],
+    'NVL-H':  ['NVLUL', 'NVL-UL', 'NVL_UL', 'PTLUH', 'FOR PTLUH'],
+    'NVL-HX': ['NVLUL', 'NVL-UL', 'NVL_UL', 'PTLUH', 'FOR PTLUH'],
     'NVL-UL': ['FOR PTLUH'],
     'PTL-H': [],
     'ARL-H': [],
