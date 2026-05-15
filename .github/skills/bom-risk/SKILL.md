@@ -139,21 +139,27 @@ Produces `<Platform>_BOM_Risk_Assessment_YYYYMMDD_HHMMSS.xlsx`. The platform pre
 
 ### Phase 2 — Risk Assessment (after Customer Returns Column C)
 
-For each row, classify Column D risk:
+For each row compare Column B (RVP reference) vs Column C (customer part).
+Mirror the **Slate14 MLK BOM** language exactly — short, telegraphic, engineer-to-engineer.
 
-| Customer Part (C) vs PCL | Risk | D-cell text |
-|--------------------------|:----:|-------------|
-| C in PCL as iPoR | 🟢 Low | `Low: on PCL Rev0.7 (iPoR)` |
-| C in PCL as ECO / Open Lab / iPoC | 🟢 Low | `Low: on PCL (ECO category)` |
-| C == B (same as RVP) | 🟢 Low | `Low: Co-using with RVP` |
-| C not in PCL but established (proven silicon) | 🟡 Medium | `Medium: not on PCL, OEM validation needed` |
-| C is security-critical AND not in PCL | 🔴 High | `High: security-critical, not on PCL` |
-| C is brand-new with no validation data | 🔴 High | `High: no validation evidence` |
+| C vs B / PCL | Risk | Verbatim D-cell text |
+|--------------|:----:|----------------------|
+| C == B (or C == "same") | 🟢 Low | `Low: Co-using on <prev_platform>` |
+| C is on the new PCL | 🟢 Low | `Low: on the Intel <PLAT>PCL.` |
+| C on PCL + best alternative recommended | 🟢 Low | `Low: on the Intel <PLAT>PCL.\n(Best :<preferred PN>)` |
+| Intel POR / reference design | 🟢 Low | `Low:Inel POR` (note: "Inel" verbatim per source) |
+| C≠B but co-lay variant on PCL | 🟢 Low | `Low:\nCo-using on <prev>\nfor <C-PN>\n<B-PN> is on the <PLAT> PCL.` |
+| C not in PCL, security/compliance critical | 🔴 High | `High:\nnot on the <PLAT> PCL.\n<security/compliance reason>` |
+| C not in PCL, brand new with no validation | 🔴 High | `High:\nnot on the <PLAT> PCL.\nNew component with no prior validation` |
+| C not in PCL, established silicon | 🟡 Medium | `Medium:\nnot on the <PLAT> PCL list\n<one-line technical concern>` |
+| Both B and C are `NA` | — | **leave D empty** |
 
-**Always check `PCL Remarks` column for platform-specific parts:**  
-e.g. `For NVL-UL` ≠ applicable to NVL-S.
+**Notation conventions** (match Slate14 source verbatim):
+- `<PLAT>PCL` written with **no space** before PLAT (e.g. `NVLPCL`)
+- `(Best :<PN>)` — single space between `Best` and `:` and after colon
+- `\n` between the level header and reason lines
 
-Full rules: [references/risk_criteria.md](./references/risk_criteria.md)
+Full rules and verbatim examples: [references/risk_criteria.md](./references/risk_criteria.md)
 
 ---
 

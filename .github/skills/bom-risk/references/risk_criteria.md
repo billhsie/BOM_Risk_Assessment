@@ -1,125 +1,140 @@
-# BOM Risk Assessment Criteria
+# BOM Risk Assessment Criteria (Phase 2)
 
-Reference for Step 6 of the BOM Risk Assessment skill.
-Compare Column B (RVP reference) vs Column C (customer component) to determine risk level.
+Reference for Column D wording. **Mirror the Slate14 MLK BOM tone exactly** —
+short, telegraphic, engineer-to-engineer. The Slate14 file (PTL→NVL migration)
+is the gold standard captured here.
 
 ---
 
-## Decision Tree
+## Decision Logic (apply in order)
+
+1. **Both B and C are `NA`** → leave D **empty**.
+2. **C is empty** (customer not yet returned) → leave D empty until Phase 2.
+3. **C == B verbatim, or C == "same"** → `Low: Co-using on <prev_platform>`
+4. **C is found in the new PCL** (any vendor/part match) → `Low: on the Intel <PLAT>PCL.`
+   - Optionally append a `(Best :<preferred PN>)` line if there's a recommended primary part.
+5. **C ≠ B but customer uses a co-lay alt that's also in PCL** → combined Low form (see template below).
+6. **C is Intel reference design / POR** → `Low:Inel POR` (note: typo "Inel" preserved per source).
+7. **C is NOT in PCL AND is security/compliance-critical** (TPM, Tamper PLD, Security Module, Secure Boot, CNSA 2.0, FIPS) → **High**.
+8. **C is NOT in PCL but is established silicon, no security risk** → **Medium**.
+9. **C is brand new with no prior platform validation** → **High**.
+
+`<PLAT>` = target platform short code. Slate14 uses `NVL` with no space (i.e. `NVLPCL`). Match exactly.
+
+---
+
+## Verbatim text templates (copy exactly)
+
+### 🟢 Low (cell color `#92D050`)
 
 ```
-Is C column empty?
-  → Skip (no assessment possible)
-
-Is C == "same" or C == B (identical)?
-  → LOW: "Low: Co-using on <old platform>"
-
-Is C part number found in PCL as iPoR?
-  → LOW: "Low: on the Intel <PCL> platform"
-
-Is C part number found in PCL as ECO?
-  → LOW: "Low: on the Intel <PCL>\n(Category: ECO – OEM validated)"
-
-Is C part number found in PCL as Open Lab?
-  → LOW-MEDIUM: "Low: on the Intel <PCL>\n(Category: Open Lab)"
-
-Is B marked [NOT in NVL PCL] (amber)?
-  → Apply special rules below ↓
-
-Is C a security-critical component (TPM, Secure Boot, Tamper PLD, Security Module)?
-  → if NOT in PCL: HIGH
-  → if in PCL: LOW
-
-Is C a brand new component with no PTL/prior platform history?
-  → HIGH: "High:\nnot on the NVL PCL\nNew component – no prior platform validation"
-
-Is C not in PCL but same function as B with known compatibility?
-  → MEDIUM: "Medium:\nnot on the NVL PCL list\n<specific technical concern>"
+Low: Co-using on PTL
+```
+```
+Low: on the Intel NVLPCL.
+```
+```
+Low: on the Intel NVLPCL.
+(Best :PTN3222HMJ)
+```
+```
+Low:Inel POR
+```
+```
+Low:
+Co-using on PTL
+for PI3HDX6411BZLEX
+PS8210 is on the NVL PCL.
 ```
 
----
+### 🟡 Medium (cell color `#FFFF00`)
 
-## Low Risk — Rules & Text Templates
+```
+Medium:
+not on the NVL PCL list
+Secure boot coupling + compliance assumptions for CNSA 2.0.
+```
 
-| Situation | D-column text |
-|-----------|--------------|
-| Identical to old platform | `Low: Co-using on <OldPlatform>` |
-| On PCL as iPoR | `Low: on the Intel <PCL> platform` |
-| Intel POR component | `Low: Intel POR` |
-| On PCL + co-using on old platform | `Low: Co-using on <OldPlatform>\non the Intel <PCL>` |
-| PCL ECO category | `Low: on the Intel <PCL>\n(Category: ECO)` |
-| PCL Heirs category (inherited, low risk) | `Low: on the Intel <PCL>\n(Category: Heirs – verify on NVL)` |
+General pattern:
+```
+Medium:
+not on the <PLAT> PCL list
+<one-line technical concern>
+```
 
-**Cell color:** Green background `#92D050`
+### 🔴 High (cell color `#C00000`)
 
----
+```
+High:
+not on the NVL PCL.
+New security‑critical function
+```
 
-## Medium Risk — Rules & Text Templates
+General pattern:
+```
+High:
+not on the <PLAT> PCL.
+<one-line risk reason>
+```
 
-| Situation | D-column text |
-|-----------|--------------|
-| Not on PCL, but established part | `Medium:\nnot on the <PCL> list\n<reason>` |
-| Has CNSA 2.0 / FIPS compliance coupling | `Medium:\nnot on the NVL PCL.\nSecure boot coupling + compliance assumptions for CNSA 2.0.` |
-| PCL Open Lab only (limited validation) | `Medium:\non the Intel <PCL> as Open Lab only\nFull OEM validation required` |
-| 2nd source with uncertain compatibility | `Medium:\n<part> is 2nd source\nCompatibility with NVL not confirmed` |
-| Functional but not NVL-platform validated | `Medium:\nnot validated on NVL platform\n<specific concern>` |
-
-**Cell color:** Yellow background `#FFFF00`
-
----
-
-## High Risk — Rules & Text Templates
-
-| Situation | D-column text |
-|-----------|--------------|
-| New security-critical function, not PCL | `High:\nNew security-critical function\nnot on the NVL PCL` |
-| Brand new component, no prior validation | `High:\nnot on the NVL PCL\nNew component with no prior platform validation` |
-| Not on PCL + incompatible interface | `High:\nnot on the NVL PCL\nInterface incompatibility risk` |
-| Security module with compliance gap | `High:\nNew security-critical function\nCNSA 2.0 / PQC compliance not verified` |
-
-**Cell color:** Red background `#FF0000`
+### Empty
+Leave D blank when:
+- Both B and C are `NA`
+- B is reserved/no-stuff and C is `NA`
 
 ---
 
-## Special Cases by Subsystem
+## Vocabulary observed in Slate14 (use these terms)
+
+| Term | Meaning |
+|------|---------|
+| `Co-using on <PLAT>` | Customer reuses the RVP part |
+| `on the Intel <PLAT>PCL.` | Part is on the new platform's PCL (no space before PLAT) |
+| `Co-lay with <PN>` | Alternate footprint available |
+| `(POR)` | Plan of Record |
+| `(Best :<PN>)` | Recommended preferred part |
+| `Inel POR` | Intel POR (typo preserved verbatim from source) |
+| `for vPRO` | Variant qualifier (e.g. `Intel I219LM for vPRO`) |
+| `Match on Chip` | Fingerprint security feature (no CV3+) |
+| `PQC`, `CNSA 2.0`, `FIPS-140-3` | Compliance terms used as risk reasons |
+
+---
+
+## Special cases by subsystem
 
 ### CPU
-- Leave D column **empty** — CPU is Intel SoC, not a risk item.
+- D column **empty** — CPU is Intel SoC, not a customer-selectable risk item.
 
 ### Security Module (Broadcom Citadel)
 - NOT in NVL PCL by design (PCL Security = TPM only).
-- If customer uses CV4 (BCM58202TB1): **Medium** — new generation with PQC/CNSA 2.0 coupling.
-- If customer uses CV3+ (BCM58202): **High** — legacy part, NVL compatibility not confirmed.
+- CV4 (BCM58202TB1): **Medium** — new generation, PQC/CNSA 2.0 coupling.
+- CV3+ (BCM58202): **High** — legacy, NVL compatibility not confirmed.
 
 ### SPI Tamper PLD
 - NOT in NVL PCL.
-- If customer uses same part as B: **Low** — Co-using.
-- If customer uses new part: **High** — New security-critical function.
+- C == B → **Low** (Co-using).
+- New part → **High** (New security-critical function).
 
-### Thermal IC / Audio Amp / Small VRs (VCCST, VCCPRIM, MEMORY VR, 3V, 5V)
-- NOT in NVL PCL (PCL does not cover these categories).
-- If same as B: **Low** — Co-using on PTL.
-- If different: **Medium** — not on NVL PCL, customer to validate.
+### Thermal IC / Audio Amp / VCCST / VCCPRIM / MEMORY/3V/5V VR
+- NOT in NVL PCL (these categories not covered).
+- C == B → **Low: Co-using on PTL**.
+- Different → **Medium: not on the NVL PCL list**.
 
-### GPIO Expander / USB MUX / USB Current Limit
+### GPIO Expander / USB MUX / USB Current Limit / Power Share
 - NOT in NVL PCL.
-- If same as B: **Low**.
-- If different: **Medium** — functional validation required.
+- Same as B → **Low**. Different → **Medium**.
 
-### GMR Sensor
-- NOT in NVL PCL. PCL covers Hall sensors (Rohm BU52072GWZ).
-- If same ALPS part: **Low** — Co-using on PTL.
-- If different: **Medium** — not on PCL, no NVL validation.
+### GMR / Hall sensor
+- NOT in NVL PCL. Treat like above (Low if same, Medium if different).
 
-### VNNAON (special NVL-S rule)
-- AOZ23567BQI, MP2961B, APW8634A, uP9313 all valid for NVL-S.
-- APW8634A (Open Lab) and uP9313 (ECO) = Low but note category.
-- AOZ23567CQI and MP2961C = **NOT for NVL-S** (NVL-UL only) → High if customer uses these.
+### VNNAON (NVL-S vs NVL-H)
+- `AOZ23567BQI`, `MP2961B`, `APW8634A`, `uP9313` valid for NVL-S → **Low**.
+- `MP2961B` not for NVL-H (PCL says `For NVLS, HU, AX, AM`) → **High** if NVL-H customer uses it.
+- `AOZ23567CQI`, `MP2961C` are NVL-UL only → **High** for NVL-S/H.
 
-### IMVP9.3 (special NVL-S rule)
-- RTQ3700HHN = iPoR for NVL-S → Low.
-- MP29021 = iPoR for NVL-S (PCL 8.7) → Low.
-- RRV68600 = Heirs, Open Lab, "For PTL-UH platform" → **Medium** for NVL-S.
+### IMVP9.3
+- `MP29025`, `RTQ3700HHN`, `MP29021` valid for NVL-S/H → **Low**.
+- `RRV68600` is `For PTLUH platform` only → **High** for NVL-*.
 
 ---
 
@@ -131,5 +146,5 @@ Is C not in PCL but same function as B with known compatibility?
 | iPoc (Intel Proof of Concept) | Low-Medium | Partial validation only |
 | ECO (OEM/ODM Validated) | Low | OEM production-proven |
 | Open Lab | Low-Medium | IHV-led, limited validation |
-| Heirs (Inherited) | Medium | Not yet verified on NVL — validate carefully |
-| Not in PCL | Medium–High | Depends on component type and function |
+| Heirs (Inherited) | Medium | Not yet verified on new platform — validate carefully |
+| Not in PCL | Medium–High | Depends on component type and security relevance |
