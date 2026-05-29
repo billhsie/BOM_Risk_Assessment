@@ -5,6 +5,14 @@
 
 ---
 
+## Usage SOP (EN/ZH)
+
+For share-ready one-page SOP cards in English and Traditional Chinese, see:
+
+- [One-Page SOP Cards (GitHub Copilot Skill)](../../../README.md#one-page-sop-cards-github-copilot-skill)
+
+---
+
 ## SKILL.md Specification
 
 The skill is invoked automatically when Copilot detects BOM risk assessment intent.  

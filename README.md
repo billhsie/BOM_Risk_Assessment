@@ -246,6 +246,76 @@ Copy-Item -Recurse .github\skills\bom-risk <your-project>\.github\skills\
 
 ---
 
+## One-Page SOP Cards (GitHub Copilot Skill)
+
+### English (Share Card)
+
+```text
+[BOM Risk Assessment - GitHub Copilot Skill]
+
+Repo:
+https://github.com/billhsie/BOM_Risk_Assessment
+
+Use in 5 minutes:
+1) git clone https://github.com/billhsie/BOM_Risk_Assessment.git
+2) cd BOM_Risk_Assessment
+3) py -m pip install openpyxl
+4) code .
+5) Open Copilot Chat (Ctrl+Alt+I), switch to Agent mode
+6) Prompt: Perform BOM risk assessment for <platform>
+
+Two-phase workflow:
+Phase 1:
+- Input PCL PDF + BOM template
+- Output: Excel with Column B filled
+
+Phase 2:
+- Customer returns file with Column C filled
+- Prompt: Apply Phase 2 risk assessment using customer BOM at <path>
+- Output: Final Excel with Column D risk color coding
+
+Output file naming:
+<Platform>_BOM_Risk_Assessment_YYYYMMDD_HHMMSS.xlsx
+
+Need help:
+Contact Bill Hsieh
+```
+
+### 繁體中文 (分享卡)
+
+```text
+[BOM Risk Assessment - GitHub Copilot Skill]
+
+Repo:
+https://github.com/billhsie/BOM_Risk_Assessment
+
+5 分鐘上手:
+1) git clone https://github.com/billhsie/BOM_Risk_Assessment.git
+2) cd BOM_Risk_Assessment
+3) py -m pip install openpyxl
+4) code .
+5) 開啟 Copilot Chat (Ctrl+Alt+I)，切換到 Agent mode
+6) 輸入: Perform BOM risk assessment for <platform>
+
+兩階段流程:
+Phase 1:
+- 提供 PCL PDF + BOM template
+- 產出: B 欄已填的 Excel
+
+Phase 2:
+- 客戶回填 C 欄後回傳
+- 輸入: Apply Phase 2 risk assessment using customer BOM at <path>
+- 產出: D 欄完成風險顏色標示的最終 Excel
+
+輸出檔名規則:
+<Platform>_BOM_Risk_Assessment_YYYYMMDD_HHMMSS.xlsx
+
+需要協助:
+請聯絡 Bill Hsieh
+```
+
+---
+
 ## Repository Structure
 
 ```
