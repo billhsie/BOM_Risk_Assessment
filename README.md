@@ -235,6 +235,14 @@ Copy-Item -Recurse .github\skills\bom-risk <your-project>\.github\skills\
 #    "Perform BOM risk assessment for <your-platform>"
 ```
 
+### BOM Template Location
+
+Use the published BOM template here:
+
+- [.github/skills/bom-risk/templates/BOM_temp.xlsx](.github/skills/bom-risk/templates/BOM_temp.xlsx)
+
+If you maintain a local copy at workspace root, keep it aligned with the template above.
+
 ### Requirements
 
 | Requirement | Version |
